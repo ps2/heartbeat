@@ -33,7 +33,8 @@
 #define IS_SRVC_CHANGED_CHARACT_PRESENT  1                                           /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
 #define DEVICE_NAME                      "Heartbeat"                                 /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME                "LoopKit"                                   /**< Manufacturer. Will be passed to Device Information Service. */
+#define MANUFACTURER_NAME                "Tidepool"                                  /**< Manufacturer. Will be passed to Device Information Service. */
+#define MODEL_NAME                       "HBRDL51"                                   /**< Model name. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                 300                                         /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS       180                                         /**< The advertising timeout in units of seconds. */
 
@@ -97,8 +98,6 @@ static bool      m_rr_interval_enabled = true;            /**< Flag for enabling
 
 static nrf_ble_gatt_t m_gatt;                             /**< Structure for gatt module*/
 
-static sensorsim_cfg_t   m_battery_sim_cfg;               /**< Battery Level sensor simulator configuration. */
-static sensorsim_state_t m_battery_sim_state;             /**< Battery Level sensor simulator state. */
 static sensorsim_cfg_t   m_heart_rate_sim_cfg;            /**< Heart Rate sensor simulator configuration. */
 static sensorsim_state_t m_heart_rate_sim_state;          /**< Heart Rate sensor simulator state. */
 static sensorsim_cfg_t   m_rr_interval_sim_cfg;           /**< RR Interval sensor simulator configuration. */
@@ -540,6 +539,7 @@ static void services_init(void)
     memset(&dis_init, 0, sizeof(dis_init));
 
     ble_srv_ascii_to_utf8(&dis_init.manufact_name_str, (char *)MANUFACTURER_NAME);
+    ble_srv_ascii_to_utf8(&dis_init.model_num_str, (char *)MODEL_NAME);
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&dis_init.dis_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&dis_init.dis_attr_md.write_perm);
@@ -553,13 +553,6 @@ static void services_init(void)
  */
 static void sensor_simulator_init(void)
 {
-    m_battery_sim_cfg.min          = MIN_BATTERY_LEVEL;
-    m_battery_sim_cfg.max          = MAX_BATTERY_LEVEL;
-    m_battery_sim_cfg.incr         = BATTERY_LEVEL_INCREMENT;
-    m_battery_sim_cfg.start_at_max = true;
-
-    sensorsim_init(&m_battery_sim_state, &m_battery_sim_cfg);
-
     m_heart_rate_sim_cfg.min          = MIN_HEART_RATE;
     m_heart_rate_sim_cfg.max          = MAX_HEART_RATE;
     m_heart_rate_sim_cfg.incr         = HEART_RATE_INCREMENT;
