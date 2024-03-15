@@ -2,6 +2,7 @@
 #include <string.h>
 #include "nordic_common.h"
 #include "nrf.h"
+#include "nrf_drv_adc.h"
 #include "app_error.h"
 #include "ble.h"
 #include "ble_hci.h"
@@ -77,6 +78,16 @@
 #define DEAD_BEEF                        0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 #define APP_FEATURE_NOT_SUPPORTED        BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2        /**< Reply when unsupported features are requested. */
+
+#define ADC_REF_VOLTAGE_IN_MILLIVOLTS     600                                          /**< Reference voltage (in milli volts) used by ADC while doing conversion. */
+#define ADC_PRE_SCALING_COMPENSATION      6                                            /**< The ADC is configured to use VDD with 1/3 prescaling as input. And hence the result of conversion is to be multiplied by 3 to get the actual value of the battery voltage.*/
+#define DIODE_FWD_VOLT_DROP_MILLIVOLTS    100                                          /**< Typical forward voltage drop of the diode (Part no: SD103ATW-7-F) that is connected in series with the voltage supply. This is the voltage drop when the forward current is 1mA. Source: Data sheet of 'SURFACE MOUNT SCHOTTKY BARRIER DIODE ARRAY' available at www.diodes.com. */
+#define ADC_REF_VBG_VOLTAGE_IN_MILLIVOLTS 1200                                         /**< Value in millivolts for voltage used as reference in ADC conversion on NRF51. */
+#define ADC_INPUT_PRESCALER               3                                            /**< Input prescaler for ADC convestion on NRF51. */
+#define ADC_RES_10BIT                     1024                                         /**< Maximum digital value for 10-bit ADC conversion. */
+#define ADC_RESULT_IN_MILLI_VOLTS(ADC_VALUE)\
+        ((((ADC_VALUE) * ADC_REF_VBG_VOLTAGE_IN_MILLIVOLTS) / ADC_RES_10BIT) * ADC_INPUT_PRESCALER)
+static nrf_adc_value_t adc_buf[1];
 
 
 static uint16_t  m_conn_handle = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
@@ -245,25 +256,60 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 }
 
 
-/**@brief Function for performing battery measurement and updating the Battery Level characteristic
- *        in Battery Service.
+/**@brief Function for handling the ADC driver eevent.
+ *
+ * @details  This function will fetch the conversion result from the ADC, convert the value into
+ *           percentage and send it to peer.
  */
-static void battery_level_update(void)
+void adc_event_handler(nrf_drv_adc_evt_t const * p_event)
 {
-    uint32_t err_code;
-    uint8_t  battery_level;
-
-    battery_level = (uint8_t)sensorsim_measure(&m_battery_sim_state, &m_battery_sim_cfg);
-
-    err_code = ble_bas_battery_level_update(&m_bas, battery_level);
-    if ((err_code != NRF_SUCCESS) &&
-        (err_code != NRF_ERROR_INVALID_STATE) &&
-        (err_code != BLE_ERROR_NO_TX_PACKETS) &&
-        (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-       )
+    if (p_event->type == NRF_DRV_ADC_EVT_DONE)
     {
-        APP_ERROR_HANDLER(err_code);
+        nrf_adc_value_t adc_result;
+        uint16_t        batt_lvl_in_milli_volts;
+        uint8_t         percentage_batt_lvl;
+        uint32_t        err_code;
+
+        adc_result = p_event->data.done.p_buffer[0];
+
+        err_code = nrf_drv_adc_buffer_convert(p_event->data.done.p_buffer, 1);
+        APP_ERROR_CHECK(err_code);
+
+        batt_lvl_in_milli_volts = ADC_RESULT_IN_MILLI_VOLTS(adc_result) +
+                                  DIODE_FWD_VOLT_DROP_MILLIVOLTS;
+        percentage_batt_lvl = battery_level_in_percent(batt_lvl_in_milli_volts);
+
+        err_code = ble_bas_battery_level_update(&m_bas, percentage_batt_lvl);
+        if (
+            (err_code != NRF_SUCCESS)
+            &&
+            (err_code != NRF_ERROR_INVALID_STATE)
+            &&
+            (err_code != BLE_ERROR_NO_TX_PACKETS)
+            &&
+            (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+           )
+        {
+            APP_ERROR_HANDLER(err_code);
+        }
     }
+}
+
+/**@brief Function for configuring ADC to do battery level conversion.
+ */
+static void adc_configure(void)
+{
+    ret_code_t err_code = nrf_drv_adc_init(NULL, adc_event_handler);
+    APP_ERROR_CHECK(err_code);
+
+    static nrf_drv_adc_channel_t channel =
+        NRF_DRV_ADC_DEFAULT_CHANNEL(NRF_ADC_CONFIG_INPUT_DISABLED);
+    // channel.config.config.input = NRF_ADC_CONFIG_SCALING_SUPPLY_ONE_THIRD;
+    channel.config.config.input = (uint32_t)NRF_ADC_CONFIG_SCALING_SUPPLY_ONE_THIRD;
+    nrf_drv_adc_channel_enable(&channel);
+
+    err_code = nrf_drv_adc_buffer_convert(&adc_buf[0], 1);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -277,7 +323,8 @@ static void battery_level_update(void)
 static void battery_level_meas_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
-    battery_level_update();
+    nrf_drv_adc_sample();
+
 }
 
 
@@ -984,6 +1031,7 @@ int main(void)
     timers_init();
     buttons_leds_init(&erase_bonds);
     ble_stack_init();
+    adc_configure();
     peer_manager_init(erase_bonds);
     if (erase_bonds == true)
     {
