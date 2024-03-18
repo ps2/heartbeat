@@ -505,6 +505,10 @@ static void services_init(void)
     // Initialize Heartbeat Service.
     memset(&heartbeat_init, 0, sizeof(heartbeat_init));
 	
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_value_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.write_perm);
+
     err_code = ble_heartbeat_init(&m_heartbeat, &heartbeat_init);
     APP_ERROR_CHECK(err_code);	
 
@@ -803,6 +807,7 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     on_ble_evt(p_ble_evt);
     ble_advertising_on_ble_evt(p_ble_evt);
     nrf_ble_gatt_on_ble_evt(&m_gatt, p_ble_evt);
+    ble_heartbeat_on_ble_evt(p_ble_evt, &m_heartbeat);
 }
 
 
