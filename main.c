@@ -25,6 +25,7 @@
 #include "fstorage.h"
 #include "nrf_ble_gatt.h"
 #include "ble_conn_state.h"
+#include "ble_heartbeat.h"
 
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
@@ -108,10 +109,12 @@ APP_TIMER_DEF(m_heart_rate_timer_id);                     /**< Heart rate measur
 APP_TIMER_DEF(m_rr_interval_timer_id);                    /**< RR interval timer. */                 /**< RR interval timer. */
 APP_TIMER_DEF(m_sensor_contact_timer_id);                 /**< Sensor contact detected timer. */
 
+BLE_HEARTBEAT_DEF(m_heartbeat);
 
-static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_HEART_RATE_SERVICE, BLE_UUID_TYPE_BLE},
-                                   {BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE},
-                                   {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}}; /**< Universally unique service identifiers. */
+
+static ble_uuid_t m_adv_uuids[] = {{HEARTBEAT_SERVICE_UUID, BLE_UUID_TYPE_VENDOR_BEGIN}
+                                   }; /**< Universally unique service identifiers. */
+
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -491,11 +494,19 @@ static void gap_params_init(void)
  */
 static void services_init(void)
 {
-    uint32_t       err_code;
-    ble_hrs_init_t hrs_init;
-    ble_bas_init_t bas_init;
-    ble_dis_init_t dis_init;
-    uint8_t        body_sensor_location;
+    uint32_t             err_code;
+    ble_hrs_init_t       hrs_init;
+    ble_bas_init_t       bas_init;
+    ble_dis_init_t       dis_init;
+    ble_heartbeat_init_t heartbeat_init;
+    uint8_t              body_sensor_location;
+
+
+    // Initialize Heartbeat Service.
+    memset(&heartbeat_init, 0, sizeof(heartbeat_init));
+	
+    err_code = ble_heartbeat_init(&m_heartbeat, &heartbeat_init);
+    APP_ERROR_CHECK(err_code);	
 
     // Initialize Heart Rate Service.
     body_sensor_location = BLE_HRS_BODY_SENSOR_LOCATION_FINGER;
@@ -961,6 +972,8 @@ static void advertising_init(void)
     options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
 
     err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
+    NRF_LOG_ERROR("Err code = %d\r\n", err_code);
+    
     APP_ERROR_CHECK(err_code);
 }
 
@@ -1031,9 +1044,13 @@ int main(void)
         NRF_LOG_INFO("Bonds erased!\r\n");
     }
     gap_params_init();
-    advertising_init();
+    NRF_LOG_INFO("gap_params_init!\r\n");
     gatt_init();
+    NRF_LOG_INFO("gatt_init!\r\n");
     services_init();
+    NRF_LOG_INFO("services_init!\r\n");
+    advertising_init();
+    NRF_LOG_INFO("advertising_init!\r\n");
     sensor_simulator_init();
     conn_params_init();
 
