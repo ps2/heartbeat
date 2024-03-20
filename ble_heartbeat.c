@@ -65,7 +65,6 @@ static uint32_t heartbeat_value_char_add(ble_heartbeat_t * p_heartbeat, const bl
     ble_gatts_attr_t    attr_char_value;
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
-    uint8_t             initial_value = 8;
 
 
     memset(&char_md, 0, sizeof(char_md));
@@ -95,10 +94,10 @@ static uint32_t heartbeat_value_char_add(ble_heartbeat_t * p_heartbeat, const bl
 
     attr_char_value.p_uuid    = &ble_uuid;
     attr_char_value.p_attr_md = &attr_md;
-    attr_char_value.init_len  = sizeof(uint8_t);
+    attr_char_value.init_len  = sizeof(uint32_t);
     attr_char_value.init_offs = 0;
-    attr_char_value.max_len   = sizeof(uint8_t);
-    attr_char_value.p_value   = &initial_value;
+    attr_char_value.max_len   = sizeof(uint32_t);
+    attr_char_value.p_value   = (unsigned char*)&(p_heartbeat_init->initial_heartbeat_value);
 
     err_code = sd_ble_gatts_characteristic_add(p_heartbeat->service_handle, &char_md,
                                                &attr_char_value,
@@ -126,8 +125,6 @@ static uint32_t heartbeat_config_char_add(ble_heartbeat_t * p_heartbeat, const b
     ble_gatts_attr_t    attr_char_value;
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
-    uint32_t            initial_config_value = 5 * 60; // 5 minutes
-
 
     memset(&char_md, 0, sizeof(char_md));
 
@@ -156,10 +153,10 @@ static uint32_t heartbeat_config_char_add(ble_heartbeat_t * p_heartbeat, const b
 
     attr_char_value.p_uuid    = &ble_uuid;
     attr_char_value.p_attr_md = &attr_md;
-    attr_char_value.init_len  = sizeof(uint32_t);
+    attr_char_value.init_len  = sizeof(uint16_t);
     attr_char_value.init_offs = 0;
-    attr_char_value.max_len   = sizeof(uint32_t);
-    attr_char_value.p_value   = (unsigned char*)&initial_config_value;
+    attr_char_value.max_len   = sizeof(uint16_t);
+    attr_char_value.p_value   = (unsigned char*)&p_heartbeat_init->initial_config_value;
 
     err_code = sd_ble_gatts_characteristic_add(p_heartbeat->service_handle, &char_md,
                                                &attr_char_value,

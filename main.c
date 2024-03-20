@@ -509,7 +509,8 @@ static void services_init(void)
     // Initialize Heartbeat Service.
     memset(&heartbeat_init, 0, sizeof(heartbeat_init));
 
-    heartbeat_init.heartbeat_value = 7;
+    heartbeat_init.initial_heartbeat_value = 0;
+    heartbeat_init.initial_config_value = 5 * 60;
 	
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_value_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.read_perm);

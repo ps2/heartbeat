@@ -26,7 +26,6 @@
  */
 void ble_heartbeat_on_ble_evt( ble_evt_t const * p_ble_evt, void * p_context);
 
-
 typedef void (*ble_heartbeat_config_handler_t) (uint16_t config_value);
 
 
@@ -34,8 +33,8 @@ typedef void (*ble_heartbeat_config_handler_t) (uint16_t config_value);
  *        initialization of the service.*/
 typedef struct
 {
-    uint8_t                        heartbeat_value;                  /**< Initial heartbeat value */
-    uint16_t                       heartbeat_config_value;           /**< Initial heartbeat value */
+    uint32_t                       initial_heartbeat_value;          /**< Initial heartbeat value */
+    uint16_t                       initial_config_value;             /**< Initial config value */
     ble_srv_cccd_security_mode_t   heartbeat_value_char_attr_md;     /**< Initial security level for Heartbeat value characteristics attribute */
     ble_srv_cccd_security_mode_t   heartbeat_config_char_attr_md;    /**< Initial security level for Heartbeat config characteristics attribute */
     ble_heartbeat_config_handler_t config_handler;
@@ -75,6 +74,8 @@ void ble_heartbeat_on_ble_evt( ble_evt_t const * p_ble_evt, void * p_context);
  */
 #define BLE_HEARTBEAT_DEF(_name)                                                                    \
 static ble_heartbeat_t _name;
+
+uint32_t ble_heartbeat_trigger(ble_heartbeat_t * p_heartbeat, uint32_t new_value);
 
 
 #endif
