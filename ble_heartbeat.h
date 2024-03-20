@@ -26,23 +26,30 @@
  */
 void ble_heartbeat_on_ble_evt( ble_evt_t const * p_ble_evt, void * p_context);
 
+
+typedef void (*ble_heartbeat_config_handler_t) (uint16_t config_value);
+
+
 /**@brief Heartbeat Service init structure. This contains all options and data needed for
  *        initialization of the service.*/
 typedef struct
 {
-    uint8_t                       heartbeat_value;           /**< Initial heartbeat value */
-    ble_srv_cccd_security_mode_t  heartbeat_value_char_attr_md;     /**< Initial security level for Heartbeat value characteristics attribute */
-    ble_srv_cccd_security_mode_t  heartbeat_config_char_attr_md;    /**< Initial security level for Heartbeat config characteristics attribute */
+    uint8_t                        heartbeat_value;                  /**< Initial heartbeat value */
+    uint16_t                       heartbeat_config_value;           /**< Initial heartbeat value */
+    ble_srv_cccd_security_mode_t   heartbeat_value_char_attr_md;     /**< Initial security level for Heartbeat value characteristics attribute */
+    ble_srv_cccd_security_mode_t   heartbeat_config_char_attr_md;    /**< Initial security level for Heartbeat config characteristics attribute */
+    ble_heartbeat_config_handler_t config_handler;
 } ble_heartbeat_init_t;
 
 /**@brief Heartbeat Service structure. This contains various status information for the service. */
 struct ble_heartbeat_s
 {
-    uint16_t                      service_handle;                 /**< Handle of Heartbeat Service (as provided by the BLE stack). */
-    ble_gatts_char_handles_t      heartbeat_value_handles;        /**< Handles related to the Heartbeat Value characteristic. */
-    ble_gatts_char_handles_t      heartbeat_config_handles;        /**< Handles related to the Heartbeat Config characteristic. */
-    uint16_t                      conn_handle;                    /**< Handle of the current connection (as provided by the BLE stack, is BLE_CONN_HANDLE_INVALID if not in a connection). */
-    uint8_t                       uuid_type; 
+    uint16_t                       service_handle;                 /**< Handle of Heartbeat Service (as provided by the BLE stack). */
+    ble_gatts_char_handles_t       heartbeat_value_handles;        /**< Handles related to the Heartbeat Value characteristic. */
+    ble_gatts_char_handles_t       heartbeat_config_handles;        /**< Handles related to the Heartbeat Config characteristic. */
+    uint16_t                       conn_handle;                    /**< Handle of the current connection (as provided by the BLE stack, is BLE_CONN_HANDLE_INVALID if not in a connection). */
+    uint8_t                        uuid_type;
+    ble_heartbeat_config_handler_t config_handler;
 };
 
 // Forward declaration of the ble_heartbeat_t type.

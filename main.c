@@ -487,6 +487,10 @@ static void gap_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+void hearbeat_config_changed(uint16_t new_value) {
+    NRF_LOG_INFO("(app) Heartbeat config updated to %d\r\n", new_value);
+}
+
 
 /**@brief Function for initializing services that will be used by the application.
  *
@@ -504,10 +508,13 @@ static void services_init(void)
 
     // Initialize Heartbeat Service.
     memset(&heartbeat_init, 0, sizeof(heartbeat_init));
+
+    heartbeat_init.heartbeat_value = 7;
 	
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_value_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.write_perm);
+    heartbeat_init.config_handler = hearbeat_config_changed;
 
     err_code = ble_heartbeat_init(&m_heartbeat, &heartbeat_init);
     APP_ERROR_CHECK(err_code);	
