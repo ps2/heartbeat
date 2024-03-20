@@ -47,8 +47,6 @@
 #define MAX_BATTERY_LEVEL                100                                         /**< Maximum simulated 7battery level. */
 #define BATTERY_LEVEL_INCREMENT          1                                           /**< Increment between each simulated battery level measurement. */
 
-#define HEARTBEAT_INTERVAL               APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER)  /**< Heart rate measurement interval (ticks). */
-
 #define MIN_CONN_INTERVAL                MSEC_TO_UNITS(400, UNIT_1_25_MS)            /**< Minimum acceptable connection interval (0.4 seconds). */
 #define MAX_CONN_INTERVAL                MSEC_TO_UNITS(650, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (0.65 second). */
 #define SLAVE_LATENCY                    0                                           /**< Slave latency. */
@@ -93,7 +91,7 @@ APP_TIMER_DEF(m_heartbeat_timer_id);                     /**< Heartbeat timer. *
 
 BLE_HEARTBEAT_DEF(m_heartbeat);
 uint32_t heartbeat_value = 0;
-
+uint16_t heartbeat_config = 5*60;
 
 static ble_uuid_t m_adv_uuids[] = {{HEARTBEAT_SERVICE_UUID, BLE_UUID_TYPE_VENDOR_BEGIN}
                                    }; /**< Universally unique service identifiers. */
@@ -394,8 +392,17 @@ static void gap_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-void hearbeat_config_changed(uint16_t new_value) {
+void heartbeat_config_changed(uint16_t new_value) {
+    uint32_t             err_code;
+
     NRF_LOG_INFO("(app) Heartbeat config updated to %d\r\n", new_value);
+
+    heartbeat_config = new_value;
+    err_code = app_timer_stop(m_heartbeat_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_start(m_heartbeat_timer_id, APP_TIMER_TICKS(heartbeat_config * 1000, APP_TIMER_PRESCALER), NULL);
+    APP_ERROR_CHECK(err_code);
 }
 
 
@@ -417,12 +424,12 @@ static void services_init(void)
     memset(&heartbeat_init, 0, sizeof(heartbeat_init));
 
     heartbeat_init.initial_heartbeat_value = 0;
-    heartbeat_init.initial_config_value = 5 * 60;
+    heartbeat_init.initial_config_value = heartbeat_config;
 	
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_value_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&heartbeat_init.heartbeat_config_char_attr_md.write_perm);
-    heartbeat_init.config_handler = hearbeat_config_changed;
+    heartbeat_init.config_handler = heartbeat_config_changed;
 
     err_code = ble_heartbeat_init(&m_heartbeat, &heartbeat_init);
     APP_ERROR_CHECK(err_code);	
@@ -489,7 +496,7 @@ static void application_timers_start(void)
     err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
 
-    err_code = app_timer_start(m_heartbeat_timer_id, HEARTBEAT_INTERVAL, NULL);
+    err_code = app_timer_start(m_heartbeat_timer_id, APP_TIMER_TICKS(heartbeat_config * 1000, APP_TIMER_PRESCALER), NULL);
     APP_ERROR_CHECK(err_code);
 }
 
