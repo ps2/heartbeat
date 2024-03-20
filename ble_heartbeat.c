@@ -65,7 +65,7 @@ static uint32_t heartbeat_value_char_add(ble_heartbeat_t * p_heartbeat, const bl
     ble_gatts_attr_t    attr_char_value;
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
-
+    ble_gatts_attr_md_t cccd_md;
 
     memset(&char_md, 0, sizeof(char_md));
 
@@ -77,6 +77,13 @@ static uint32_t heartbeat_value_char_add(ble_heartbeat_t * p_heartbeat, const bl
     char_md.p_user_desc_md    = NULL;
     char_md.p_cccd_md         = NULL; 
     char_md.p_sccd_md         = NULL;
+
+    memset(&cccd_md, 0, sizeof(cccd_md));
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    cccd_md.vloc                = BLE_GATTS_VLOC_STACK;    
+    char_md.p_cccd_md           = &cccd_md;
+    char_md.char_props.notify   = 1;
 
     memset(&attr_md, 0, sizeof(attr_md));
 
@@ -121,7 +128,6 @@ static uint32_t heartbeat_config_char_add(ble_heartbeat_t * p_heartbeat, const b
 {
     uint32_t            err_code;
     ble_gatts_char_md_t char_md;
-    //ble_gatts_attr_md_t cccd_md;
     ble_gatts_attr_t    attr_char_value;
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
@@ -247,17 +253,19 @@ uint32_t ble_heartbeat_trigger(ble_heartbeat_t * p_heartbeat, uint32_t new_value
         return NRF_ERROR_NULL;
     }
 
-    ble_gatts_value_t gatts_value;
+    if (p_heartbeat->conn_handle != BLE_CONN_HANDLE_INVALID)
+    {
+        uint16_t               len = sizeof(uint32_t);
+        ble_gatts_hvx_params_t hvx_params;
+        memset(&hvx_params, 0, sizeof(hvx_params));
 
-    // Initialize value struct.
-    memset(&gatts_value, 0, sizeof(gatts_value));
+        hvx_params.handle = p_heartbeat->heartbeat_value_handles.value_handle;
+        hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+        hvx_params.offset = 0;
+        hvx_params.p_len  = &len;
+        hvx_params.p_data = (uint8_t*)&new_value;
 
-    gatts_value.len     = sizeof(uint32_t);
-    gatts_value.offset  = 0;
-    gatts_value.p_value = (unsigned char*) &new_value;
-
-    // Update database.
-    return sd_ble_gatts_value_set(p_heartbeat->conn_handle,
-                                  p_heartbeat->heartbeat_value_handles.value_handle,
-                                  &gatts_value);
+        return sd_ble_gatts_hvx(p_heartbeat->conn_handle, &hvx_params);
+    }
+    return NRF_SUCCESS; 
 }
