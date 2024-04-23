@@ -5,6 +5,6 @@ When programmed to a rdl81522, allows apps to pair and periodically do things in
 ```
 cd rdl51822/s130/armgcc
 make erase
-flash_softdevice
+make flash_softdevice
 CFLAGS=-Werror=array-bounds=0 make flash
 ```
