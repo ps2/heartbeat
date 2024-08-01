@@ -33,7 +33,7 @@
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT  1                                           /**< Include or not the service_changed characteristic. if not enabled, the server's database cannot be changed for the lifetime of the device*/
 
-#define DEVICE_NAME                      "HeartbeatFob0001"                          /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                      "HeartbeatFob0006"                          /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                "Tidepool"                                  /**< Manufacturer. Will be passed to Device Information Service. */
 #define MODEL_NAME                       "HBRDL51"                                   /**< Model name. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                 300                                         /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
@@ -42,13 +42,10 @@
 #define APP_TIMER_PRESCALER              100                                         /**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_OP_QUEUE_SIZE          4                                           /**< Size of timer operation queues. */
 
-#define BATTERY_LEVEL_MEAS_INTERVAL      APP_TIMER_TICKS(2000, APP_TIMER_PRESCALER)  /**< Battery level measurement interval (ticks). */
-#define MIN_BATTERY_LEVEL                81                                          /**< Minimum simulated battery level. */
-#define MAX_BATTERY_LEVEL                100                                         /**< Maximum simulated 7battery level. */
-#define BATTERY_LEVEL_INCREMENT          1                                           /**< Increment between each simulated battery level measurement. */
+#define BATTERY_LEVEL_MEAS_INTERVAL      APP_TIMER_TICKS(60000, APP_TIMER_PRESCALER)  /**< Battery level measurement interval (once per minute). */
 
-#define CONNECTABLE_ADV_INTERVAL         MSEC_TO_UNITS(20, UNIT_0_625_MS)              /**< The advertising interval for connectable advertisement (20 ms). This value can vary between 20ms to 10.24s. */
-#define CONNECTABLE_ADV_TIMEOUT          30                                            /**< Time for which the device must be advertising in connectable mode (in seconds). */
+#define CONNECTABLE_ADV_INTERVAL         MSEC_TO_UNITS(20, UNIT_0_625_MS)            /**< The advertising interval for connectable advertisement (20 ms). This value can vary between 20ms to 10.24s. */
+#define CONNECTABLE_ADV_TIMEOUT          30                                          /**< Time for which the device must be advertising in connectable mode (in seconds). */
 #define MIN_CONN_INTERVAL                MSEC_TO_UNITS(400, UNIT_1_25_MS)            /**< Minimum acceptable connection interval (0.4 seconds). */
 #define MAX_CONN_INTERVAL                MSEC_TO_UNITS(650, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (0.65 second). */
 #define SLAVE_LATENCY                    0                                           /**< Slave latency. */
@@ -291,6 +288,8 @@ void adc_event_handler(nrf_drv_adc_evt_t const * p_event)
         batt_lvl_in_milli_volts = ADC_RESULT_IN_MILLI_VOLTS(adc_result) +
                                   DIODE_FWD_VOLT_DROP_MILLIVOLTS;
         percentage_batt_lvl = battery_level_in_percent(batt_lvl_in_milli_volts);
+
+        NRF_LOG_INFO("(app) Battery level read: %d\r\n", percentage_batt_lvl);
 
         err_code = ble_bas_battery_level_update(&m_bas, percentage_batt_lvl);
         if (
@@ -1000,12 +999,6 @@ int main(void)
     application_timers_start();
     connectable_adv_init();
     advertising_start();
-
-    err_code = bsp_event_to_button_action_assign(BUTTON_1,
-                                                 BSP_BUTTON_ACTION_LONG_PUSH,
-                                                 BSP_EVENT_SLEEP);
-    APP_ERROR_CHECK(err_code);
-
 
     // Enter main loop.
     for (;;)
