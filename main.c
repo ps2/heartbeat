@@ -47,6 +47,8 @@
 #define MAX_BATTERY_LEVEL                100                                         /**< Maximum simulated 7battery level. */
 #define BATTERY_LEVEL_INCREMENT          1                                           /**< Increment between each simulated battery level measurement. */
 
+#define CONNECTABLE_ADV_INTERVAL         MSEC_TO_UNITS(20, UNIT_0_625_MS)              /**< The advertising interval for connectable advertisement (20 ms). This value can vary between 20ms to 10.24s. */
+#define CONNECTABLE_ADV_TIMEOUT          30                                            /**< Time for which the device must be advertising in connectable mode (in seconds). */
 #define MIN_CONN_INTERVAL                MSEC_TO_UNITS(400, UNIT_1_25_MS)            /**< Minimum acceptable connection interval (0.4 seconds). */
 #define MAX_CONN_INTERVAL                MSEC_TO_UNITS(650, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (0.65 second). */
 #define SLAVE_LATENCY                    0                                           /**< Slave latency. */
@@ -85,12 +87,15 @@ static ble_bas_t m_bas;                                   /**< Structure used to
 
 static nrf_ble_gatt_t m_gatt;                             /**< Structure for gatt module*/
 
+static ble_gap_adv_params_t     m_adv_params;             /**< Parameters to be passed to the stack when starting advertising. */
+
 APP_TIMER_DEF(m_battery_timer_id);                        /**< Battery timer. */
 APP_TIMER_DEF(m_heartbeat_timer_id);                      /**< Heartbeat timer. */
 
 BLE_HEARTBEAT_DEF(m_heartbeat);
 uint32_t heartbeat_value = 0;
 uint16_t heartbeat_config = 5*60;
+
 
 static ble_uuid_t m_adv_uuids[] = {{HEARTBEAT_SERVICE_UUID, BLE_UUID_TYPE_VENDOR_BEGIN}
                                    }; /**< Universally unique service identifiers. */
@@ -112,13 +117,39 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
+
+/**@brief Function for initializing the connectable advertisement parameters.
+ *
+ * @details This function initializes the advertisement parameters to values that will put
+ *          the application in connectable mode.
+ *
+ */
+static void connectable_adv_init(void)
+{
+    // Initialize advertising parameters (used when starting advertising).
+    memset(&m_adv_params, 0, sizeof(m_adv_params));
+
+    m_adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND ;
+    m_adv_params.p_peer_addr = NULL;                               // Undirected advertisement
+    m_adv_params.fp          = BLE_GAP_ADV_FP_ANY;
+    m_adv_params.interval    = CONNECTABLE_ADV_INTERVAL;
+    m_adv_params.timeout     = CONNECTABLE_ADV_TIMEOUT;
+}
+
 /**@brief Function for starting advertising.
  */
 void advertising_start(void)
 {
     ret_code_t err_code;
 
-    err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+    //err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
+
+    err_code = bsp_indication_set(BSP_INDICATE_BONDING);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = sd_ble_gap_adv_start(&m_adv_params);
+    APP_ERROR_CHECK(err_code);
+
     APP_ERROR_CHECK(err_code);
 }
 
@@ -583,11 +614,12 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
             NRF_LOG_INFO("Fast Advertising\r\n");
-            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING_DIRECTED);
             APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_IDLE:
+            err_code = bsp_indication_set(BSP_INDICATE_IDLE);
             sleep_mode_enter();
             break;
 
@@ -609,7 +641,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     {
         case BLE_GAP_EVT_CONNECTED:
             NRF_LOG_INFO("Connected\r\n");
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
+            err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING_SLOW);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break; // BLE_GAP_EVT_CONNECTED
@@ -924,7 +956,10 @@ void gatt_init(void)
 int main(void)
 {
     uint32_t err_code;
-    bool     erase_bonds;
+    bool erase_bonds;
+
+    bool is_advertise_mode = false;
+
 
     // Initialize.
     err_code = NRF_LOG_INIT(NULL);
@@ -932,7 +967,18 @@ int main(void)
 
     timers_init();
     buttons_leds_init(&erase_bonds);
+
+    is_advertise_mode = bsp_button_is_pressed(BUTTON_1);
+
     ble_stack_init();
+
+    if (!is_advertise_mode)
+    {
+        // The startup was not because of button presses. This is the first start.
+        // Go into System-Off mode. Button presses will wake the chip up.
+        sleep_mode_enter();
+    }
+
     adc_configure();
     peer_manager_init(erase_bonds);
     if (erase_bonds == true)
@@ -952,7 +998,14 @@ int main(void)
     // Start execution.
     NRF_LOG_INFO("Heartbeat Start!\r\n");
     application_timers_start();
+    connectable_adv_init();
     advertising_start();
+
+    err_code = bsp_event_to_button_action_assign(BUTTON_1,
+                                                 BSP_BUTTON_ACTION_LONG_PUSH,
+                                                 BSP_EVENT_SLEEP);
+    APP_ERROR_CHECK(err_code);
+
 
     // Enter main loop.
     for (;;)

@@ -14,7 +14,7 @@ extern "C" {
 #define LED_1          29
 #define LED_STOP       29
 
-#define LEDS_ACTIVE_STATE 0
+#define LEDS_ACTIVE_STATE 1
 
 #define LEDS_LIST { LED_1 }
 
@@ -29,7 +29,7 @@ extern "C" {
 #define BUTTON_STOP    28
 #define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
 
-#define BUTTONS_ACTIVE_STATE 1
+#define BUTTONS_ACTIVE_STATE 0
 
 #define BUTTONS_LIST { BUTTON_1 }
 
